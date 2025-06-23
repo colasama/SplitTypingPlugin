@@ -76,7 +76,7 @@ class DelayedResponsePlugin(BasePlugin):
         if not self.config.get("enable_split", True):
             return [text]
 
-        segments = re.split(r'\$\$|\n\n', text)
+        segments = re.split(r'\$|\n\n', text)
         
         # 过滤掉空的片段
         return [seg.strip() for seg in segments if seg.strip()]
