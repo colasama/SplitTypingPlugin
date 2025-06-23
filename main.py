@@ -65,7 +65,7 @@ class DelayedResponsePlugin(BasePlugin):
     # 智能分段文本
     def split_text(self, text: str) -> list:
         # 获取字符长度限制
-        max_chars = self.config.get("max_chars_for_split", 100)
+        max_chars = 150
         
         # 如果文本长度超过限制，不进行分段
         if max_chars > 0 and len(text) > max_chars:
@@ -75,42 +75,11 @@ class DelayedResponsePlugin(BasePlugin):
         # 如果不启用分段，直接返回原文本
         if not self.config.get("enable_split", True):
             return [text]
-            
-        # 先处理括号内的内容
-        segments = []
-        current = ""
-        in_parentheses = False
+
+        segments = re.split(r'\$\$|\n\n', text)
         
-        # 需要删除的标点符号
-        skip_punctuation = self.config.get("skip_punctuation", ["，", "。", ",", ".", ":", "：", "\n"])
-        # 作为分段标记的标点符号
-        split_punctuation = self.config.get("split_punctuation", ["？", "！", "?", "!"])
-        
-        for i, char in enumerate(text):
-            if char == '(':
-                in_parentheses = True
-                if current.strip():
-                    segments.append(current.strip())
-                current = char
-            elif char == ')':
-                in_parentheses = False
-                current += char
-                segments.append(current.strip())
-                current = ""
-            elif char in skip_punctuation and not in_parentheses:
-                continue
-            else:
-                current += char
-                # 如果不在括号内且遇到分隔符，进行分段
-                if not in_parentheses and char in split_punctuation:
-                    segments.append(current.strip())
-                    current = ""
-        
-        # 处理最后剩余的文本
-        if current.strip():
-            segments.append(current.strip())
-        
-        return [seg for seg in segments if seg.strip()]
+        # 过滤掉空的片段
+        return [seg.strip() for seg in segments if seg.strip()]
     
     # 处理私聊消息命令
     @handler(PersonNormalMessageReceived)
