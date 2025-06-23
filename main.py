@@ -70,11 +70,12 @@ class DelayedResponsePlugin(BasePlugin):
         # 如果文本长度超过限制，不进行分段
         if max_chars > 0 and len(text) > max_chars:
             self.host.ap.logger.debug(f"文本长度为 {len(text)} 字符，超过限制 {max_chars}，不进行分段")
-            return [text]
+            
+            return [text.replace(' $ ', '')]
         
         # 如果不启用分段，直接返回原文本
         if not self.config.get("enable_split", True):
-            return [text]
+            return [text.replace(' $ ', '')]
 
         segments = re.split(r'\$|\n\n', text)
         
