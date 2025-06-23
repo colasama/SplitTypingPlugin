@@ -64,23 +64,65 @@ class DelayedResponsePlugin(BasePlugin):
         
     # 智能分段文本
     def split_text(self, text: str) -> list:
+        # 清洗字符
+        text = re.sub('[#*]', '', text)
         # 获取字符长度限制
-        max_chars = 150
+        max_chars = 200
         
         # 如果文本长度超过限制，不进行分段
         if max_chars > 0 and len(text) > max_chars:
-            self.host.ap.logger.debug(f"文本长度为 {len(text)} 字符，超过限制 {max_chars}，不进行分段")
-            
-            return [text.replace(' $ ', '')]
+            return text.replace('$', '').replace(' ', '')
         
-        # 如果不启用分段，直接返回原文本
-        if not self.config.get("enable_split", True):
-            return [text.replace(' $ ', '')]
-
         segments = re.split(r'\$|\n\n', text)
         
         # 过滤掉空的片段
-        return [seg.strip() for seg in segments if seg.strip()]
+        segments = [seg.strip() for seg in segments if seg.strip()]
+        
+        # 合并片段为最多5段，优先合并小于3个字符的片段
+        return self.merge_segments(segments, max_segments=5)
+    
+    def merge_segments(self, segments: list, max_segments: int = 5) -> list:
+        """合并片段为指定数量，优先合并小于3个字符的片段，保持顺序不变"""
+        if len(segments) <= max_segments:
+            return segments
+        
+        # 创建副本避免修改原列表
+        merged = segments.copy()
+        
+        # 循环合并，直到片段数量不超过max_segments
+        while len(merged) > max_segments:
+            # 找到小于3个字符的片段
+            short_segments = [(i, seg) for i, seg in enumerate(merged) if len(seg) < 3]
+            
+            if short_segments:
+                # 优先合并小于3个字符的片段
+                merge_idx, _ = short_segments[0]
+            else:
+                # 如果没有小于3个字符的片段，合并最短的片段
+                merge_idx = min(range(len(merged)), key=lambda i: len(merged[i]))
+            
+            # 确定合并方向（优先向前合并，如果是最开始则向后合并）
+            if merge_idx == 0:
+                # 第一个片段，向后合并
+                target_idx = 1
+            elif merge_idx == len(merged) - 1:
+                # 最后一个片段，向前合并
+                target_idx = merge_idx - 1
+            else:
+                # 中间的片段，向前合并
+                target_idx = merge_idx - 1
+            
+            # 执行合并，保持顺序
+            if merge_idx < target_idx:
+                # 向前合并：将当前片段合并到前一个片段
+                merged[target_idx] = merged[merge_idx] + merged[target_idx]
+                merged.pop(merge_idx)
+            else:
+                # 向后合并：将当前片段合并到后一个片段
+                merged[target_idx] = merged[target_idx] + merged[merge_idx]
+                merged.pop(merge_idx)
+        
+        return merged
     
     # 处理私聊消息命令
     @handler(PersonNormalMessageReceived)
